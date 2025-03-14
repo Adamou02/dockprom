@@ -1,3 +1,7 @@
+x-logging: &default-logging
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+
 networks:
   monitor-net:
     driver: bridge
@@ -28,6 +32,7 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    logging: *default-logging
 
   alertmanager:
     image: prom/alertmanager:v0.28.0
@@ -44,6 +49,7 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    logging: *default-logging
 
   nodeexporter:
     image: prom/node-exporter:v1.8.2
@@ -64,6 +70,7 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    logging: *default-logging
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.51.0
@@ -87,6 +94,7 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    logging: *default-logging
 
   grafana:
     image: grafana/grafana:11.5.1
@@ -106,6 +114,7 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    logging: *default-logging
 
   pushgateway:
     image: prom/pushgateway:v1.11.0
@@ -117,12 +126,42 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    logging: *default-logging
+
+  loki:
+    image: grafana/loki:2.6.0
+    restart: unless-stopped
+    expose:
+      - 3100
+    volumes:
+      - ./loki:/etc/loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+    logging: *default-logging
+
+  promtail:
+    image: grafana/promtail:2.6.0
+    restart: unless-stopped
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./loki:/etc/promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+    logging: *default-logging
 
   caddy:
     image: caddy:2.9.1
     container_name: caddy
     ports:
       - "3000:3000"
+      - "3100:3100"
       - "8080:8080"
       - "9090:9090"
       - "9093:9093"
@@ -138,3 +177,4 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    logging: *default-logging
